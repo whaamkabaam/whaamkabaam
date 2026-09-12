@@ -14,5 +14,6 @@
   },
   "devDependencies": {
     "playwright": "^1.55.1"
-  }
+  },
+  "description": "the profile readme for whaamkabaam and the script that draws its card"
 }
