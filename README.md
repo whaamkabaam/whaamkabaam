@@ -4,7 +4,7 @@ i build an aim coach. you tell it how your aim feels and it reshapes your mouse 
 
 1,500+ clients, 9,000+ curves coached, 47,000+ in the discord. i peaked #956 on the eu valorant ladder, which is the only reason anyone let me near their sensitivity in the first place.
 
-most of the commits up there are ai agents working from my direction. i decide what gets built, they build it, i judge what comes back. that is also why the curve has a knee instead of a slope.
+most of the commits up there are ai agents working from my direction. i pick what gets built and judge what comes back.
 
 **[whaamkabaam.com](https://whaamkabaam.com)** the coach. describe the problem, get a curve back.
 
