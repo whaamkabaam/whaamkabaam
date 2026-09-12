@@ -53,6 +53,9 @@ export function textWidth(str, weight = 400, size = 16, letterSpacing = 0) {
   return em * size + letterSpacing * Math.max(0, String(str).length - 1);
 }
 
+// Checks against the measured glyph table (fonts/metrics.json), which was built
+// from the exact woff2 subsets in fonts/. Re-run `npm run measure` after changing
+// those files, or this check will pass for glyphs the font no longer carries.
 export function assertGlyphs(str) {
   const table = METRICS['700'];
   for (const ch of String(str)) if (!(ch in table)) throw new Error(`glyph not in the embedded subset: U+${ch.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')} in "${str}"`);
