@@ -1,0 +1,58 @@
+name: refresh profile
+
+# Regenerates the profile artwork from live GitHub data and force-pushes the
+# result to the orphan `output` branch. main only ever carries source, so the
+# history a visitor sees stays human. The push itself counts as repository
+# activity, which is what keeps GitHub from disabling this schedule after 60
+# idle days.
+
+on:
+  schedule:
+    - cron: "17 8 * * *"   # daily, 08:17 UTC: the same calendar date in utc, berlin and california, off the hour to dodge the cron rush
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-profile
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: fetch data and render assets
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/fetch.mjs
+          node scripts/render.mjs
+          node scripts/lint.mjs
+
+      - name: publish to the output branch
+        run: |
+          # Commit as the actions bot, never as the profile owner: a commit
+          # authored by him would count as a contribution and inflate the
+          # very graph the README shows.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -rf /tmp/out && mkdir -p /tmp/out
+          cp -R assets/. /tmp/out/
+          cp data/profile.json /tmp/out/profile.json
+          cd /tmp/out
+          git init -q -b output
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "render: $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" output:output
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
