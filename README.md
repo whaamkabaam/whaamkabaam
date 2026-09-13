@@ -1,11 +1,16 @@
 <picture>
   <source media="(max-width: 500px)" srcset="https://raw.githubusercontent.com/whaamkabaam/whaamkabaam/output/coach-narrow.svg">
-  <img alt="the coach card. the complaint 'i can't see what you build', answered with the last year's contribution count, how much of it sits in private repos (nearly all), and the whole year drawn as one rising curve with the public-repo line flat along the floor. the exact numbers and the date are printed on the card." src="https://raw.githubusercontent.com/whaamkabaam/whaamkabaam/output/coach.svg">
+  <img alt="the year card. the complaint 'i can't see what you build', answered with where the last year's contributions went: mostly the coach, then summerup, klips and ponda, drawn as stacked bands under one rising curve, with the public-repo line flat along the floor, the live discord member count, and the date. the exact numbers are printed on the card." src="https://raw.githubusercontent.com/whaamkabaam/whaamkabaam/output/coach.svg">
 </picture>
 
-i build an aim coach. you tell it how your aim feels and it reshapes your mouse acceleration curve. "my flicks overshoot" goes in, a new curve comes out.
+i build an aim coach. you tell it how your aim feels and it reshapes your mouse acceleration curve. this is the whole product, at full size:
 
-1,500+ clients, 9,000+ curves coached, 46,000+ in the discord. i peaked #956 on the eu valorant ladder, which is the only reason anyone let me near their sensitivity in the first place.
+<picture>
+  <source media="(max-width: 500px)" srcset="https://raw.githubusercontent.com/whaamkabaam/whaamkabaam/output/demo-narrow.svg">
+  <img alt="the coach in one exchange. a player writes 'my flicks overshoot'. the coach answers 'pulled your close range back.' and the sensitivity curve's fast end drops from the dashed old shape to the gold new one, slow end unchanged." src="https://raw.githubusercontent.com/whaamkabaam/whaamkabaam/output/demo.svg">
+</picture>
+
+1,500+ clients, 9,000+ curves coached. the discord count is on the card, live. i peaked #956 on the eu valorant ladder, which is the only reason anyone let me near their sensitivity in the first place.
 
 **[whaamkabaam.com](https://whaamkabaam.com)** the coach. describe the problem, get a curve back.
 
@@ -22,7 +27,7 @@ software engineering at code university berlin. spent summer 2026 at the stanfor
 [discord](https://discord.gg/whaam) · [tiktok](https://tiktok.com/@whaamkabaam) · [twitch](https://twitch.tv/whaamkabaam)
 
 <!--
-the card up there is two svgs on the output branch of this repo, one for desktop and one for phones. nothing is proxied through a third party that can go down.
+the cards are svgs on the output branch of this repo, a desktop and a phone cut of each. nothing is proxied through a third party that can go down. the per-project split appears only when a token that can see the private repos is present; without it the card falls back to private vs public.
 
 the date on the card is the last day github had data for when the job last ran. it is not a promise that it refreshes. if this ever stops, you will watch that date go stale instead of reading a claim.
 
