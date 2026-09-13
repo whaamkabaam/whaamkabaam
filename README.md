@@ -1,14 +1,9 @@
 <picture>
   <source media="(max-width: 500px)" srcset="https://raw.githubusercontent.com/whaamkabaam/whaamkabaam/output/coach-narrow.svg">
-  <img alt="the year card. the complaint 'i can't see what you build', answered with where the last year's contributions went: mostly the coach, then summerup, klips and ponda, drawn as stacked bands under one rising curve, with the public-repo line flat along the floor, the live discord member count, and the date. the exact numbers are printed on the card." src="https://raw.githubusercontent.com/whaamkabaam/whaamkabaam/output/coach.svg">
+  <img alt="the year, painted. the complaint 'i can't see what you build', answered 'you're looking at it': one fling of paint per day of the last 365, heavier days throw more, gold for the coach, white for summerup, orange for everything else. the counts, the date and the live discord member count are printed under it." src="https://raw.githubusercontent.com/whaamkabaam/whaamkabaam/output/coach.svg">
 </picture>
 
-i build an aim coach. you tell it how your aim feels and it reshapes your mouse acceleration curve. this is the whole product, at full size:
-
-<picture>
-  <source media="(max-width: 500px)" srcset="https://raw.githubusercontent.com/whaamkabaam/whaamkabaam/output/demo-narrow.svg">
-  <img alt="the coach in one exchange. a player writes 'my flicks overshoot'. the coach answers 'pulled your close range back.' and the sensitivity curve's fast end drops from the dashed old shape to the gold new one, slow end unchanged." src="https://raw.githubusercontent.com/whaamkabaam/whaamkabaam/output/demo.svg">
-</picture>
+i build an aim coach. you tell it how your aim feels and it reshapes your mouse acceleration curve. "my flicks overshoot" goes in, a new curve comes out.
 
 1,500+ clients, 9,000+ curves coached. the discord count is on the card, live. i peaked #956 on the eu valorant ladder, which is the only reason anyone let me near their sensitivity in the first place.
 
@@ -27,13 +22,13 @@ software engineering at code university berlin. spent summer 2026 at the stanfor
 [discord](https://discord.gg/whaam) · [tiktok](https://tiktok.com/@whaamkabaam) · [twitch](https://twitch.tv/whaamkabaam)
 
 <!--
-the cards are svgs on the output branch of this repo, a desktop and a phone cut of each. nothing is proxied through a third party that can go down. the per-project split appears only when a token that can see the private repos is present; without it the card falls back to private vs public.
+the painting is an svg on the output branch of this repo, a desktop and a phone cut. every stroke is a day of commits, seeded by the date, so the same year always paints the same picture. nothing is proxied through a third party that can go down. the colours need a token that can see the private repos; without it every day is gold.
 
 the date on the card is the last day github had data for when the job last ran. it is not a promise that it refreshes. if this ever stops, you will watch that date go stale instead of reading a claim.
 
 it commits as github-actions[bot] onto a branch that is not the default, so redrawing the card never adds to the number the card draws.
 
-two weights of inter, subset and base64'd into each file. about 35 kb per card, 20 of it font, 19 over the wire. the build fails on any character that is not in the subset.
+two weights of inter, subset and base64'd into the file. about 185 kb, most of it paint. the build fails on any character that is not in the subset.
 
 if you came to copy it: https://github.com/whaamkabaam/whaamkabaam (scripts/render.mjs)
 -->

@@ -49,7 +49,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           rm -rf /tmp/out && mkdir -p /tmp/out
-          cp assets/coach.svg assets/coach-narrow.svg assets/demo.svg assets/demo-narrow.svg assets/social.svg /tmp/out/
+          cp assets/coach.svg assets/coach-narrow.svg assets/social.svg /tmp/out/
           cp data/profile.json /tmp/out/profile.json
           cd /tmp/out
           git init -q -b output
