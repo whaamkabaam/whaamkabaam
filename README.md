@@ -1,34 +1,34 @@
 <picture>
   <source media="(max-width: 500px)" srcset="https://raw.githubusercontent.com/whaamkabaam/whaamkabaam/output/coach-narrow.svg">
-  <img alt="the year, painted. the complaint 'i can't see what you build', answered 'you're looking at it': one fling of paint per day of the last 365, heavier days throw more, gold for the coach, white for summerup, orange for everything else. the counts, the date and the live discord member count are printed under it." src="https://raw.githubusercontent.com/whaamkabaam/whaamkabaam/output/coach.svg">
+  <img alt="a drip painting of my last 365 days on github. one stroke per day, bigger on busy days. gold is whaamkabaam.com, white is summerup, orange is everything else. under it: the counts, the date, and the discord member count. above it, the line 'i can't see what you build' and the reply 'you're looking at it'." src="https://raw.githubusercontent.com/whaamkabaam/whaamkabaam/output/coach.svg">
 </picture>
 
-i build an aim coach. you tell it how your aim feels and it reshapes your mouse acceleration curve. "my flicks overshoot" goes in, a new curve comes out.
+i build an aim coach. you tell it how your aim feels and it changes your mouse acceleration curve.
 
-1,500+ clients, 9,000+ curves coached. the discord count is on the card, live. i peaked #956 on the eu valorant ladder, which is the only reason anyone let me near their sensitivity in the first place.
+1,500+ clients, 9,000+ curves so far. i peaked #956 on the eu valorant ladder before i started building it.
 
-**[whaamkabaam.com](https://whaamkabaam.com)** the coach. describe the problem, get a curve back.
+**[whaamkabaam.com](https://whaamkabaam.com)** the coach. most of the commits above went here.
 
-**[plox](https://github.com/whaamkabaam/plox)** a lox interpreter in python, tree walking, 68 tests. written to find out what a parser actually does.
+**[plox](https://github.com/whaamkabaam/plox)** a lox interpreter in python. tree walking, 68 tests, uni project.
 
-**ponda** saved tiktoks and reels turned into memory you can query. bun, postgres, gemini. not public yet.
+**ponda** turns saved tiktoks and reels into notes you can search. bun, postgres, gemini. not public yet.
 
-**[summerup](https://summerup.berlin)** a week-long startup hackathon at code berlin, which i help run. the rule is sell it before you build it.
+**[summerup](https://summerup.berlin)** a week-long startup hackathon at code berlin. i co-organise it. teams have to sell before they build.
 
-before the coach: gaming automation and small ml models, which is where the curve math came from. before that: a minecraft channel at ten, a 30+ page instagram network sold at fifteen. the shape has not changed much.
+before the coach i did gaming automation and small ml models, which is where the curve math comes from. at ten i ran a minecraft youtube channel. at fifteen i sold a network of 30+ instagram pages.
 
 software engineering at code university berlin. spent summer 2026 at the stanford international honors program.
 
 [discord](https://discord.gg/whaam) · [tiktok](https://tiktok.com/@whaamkabaam) · [twitch](https://twitch.tv/whaamkabaam)
 
 <!--
-the painting is an svg on the output branch of this repo, a desktop and a phone cut. every stroke is a day of commits, seeded by the date, so the same year always paints the same picture. nothing is proxied through a third party that can go down. the colours need a token that can see the private repos; without it every day is gold.
+the painting is an svg on the output branch of this repo, one for desktop and one for phones. each stroke is one day of commits. the random seed is the date, so the same data draws the same picture. nothing on this page is loaded from a third party. the colours need a token that can see the private repos; without it every day is gold.
 
-the date on the card is the last day github had data for when the job last ran. it is not a promise that it refreshes. if this ever stops, you will watch that date go stale instead of reading a claim.
+the date on the card is the last day github had data for when the job last ran. if the job stops, the date stops moving.
 
-it commits as github-actions[bot] onto a branch that is not the default, so redrawing the card never adds to the number the card draws.
+the job commits as github-actions[bot] to a non-default branch, so redrawing the card does not add to the count on it.
 
-two weights of inter, subset and base64'd into the file. about 185 kb, most of it paint. the build fails on any character that is not in the subset.
+two weights of inter, subset and base64'd into the file. about 185 kb, mostly path data. the build fails on any character that is not in the subset.
 
 if you came to copy it: https://github.com/whaamkabaam/whaamkabaam (scripts/render.mjs)
 -->

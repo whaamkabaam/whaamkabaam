@@ -27,7 +27,7 @@ const elseTotal = data.total - coachTotal - summerupTotal;
 const stateB = process.env.STATE_B === '1' && data.trailing14 === 0;
 const complaint = stateB ? 'nothing’s moved in weeks' : 'i can’t see what you build';
 const reply = stateB ? 'nothing new in 14 days.' : 'you’re looking at it.';
-const replyGrey = stateB ? 'the paint is the last 365 days.' : '365 days of commits, flung. heavier days throw more paint.';
+const replyGrey = stateB ? 'the paint is the last 365 days.' : 'one stroke per day for the last year. busy days get bigger strokes.';
 const key = split
   ? [['whaamkabaam.com', COL.coach, coachTotal], ['summerup', COL.summerup, summerupTotal], ['everything else', COL.other, elseTotal]]
   : [['contributions', COL.coach, data.total], ['in public repos', GREY, data.public]];
