@@ -11,7 +11,7 @@ const when = d.generated.slice(0, 16).replace('T', ' ') + ' utc';
 const rows = [
   ['contributions, last 365 days', fmt(d.total)],
   ['of them in private repos', fmt(d.private)],
-  ...(d.projects ? d.projects.filter(p => p.label !== 'other').slice(0, 4).map(p => [`  ${p.label}`, fmt(p.total)]) : []),
+  ...(d.projects ? d.projects.filter(p => p.label !== 'other').slice(0, 4).map(p => [`commits to ${p.label}`, fmt(p.total)]) : []),
   ...(d.discord ? [['discord members', fmt(d.discord.members)], ['online when checked', fmt(d.discord.online)]] : []),
   ['busiest day', `${fmt(d.busiest.count)} on ${d.busiest.date}`],
   ['longest streak', `${d.best_streak} days`],
