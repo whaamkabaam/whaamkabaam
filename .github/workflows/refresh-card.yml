@@ -9,6 +9,7 @@ name: refresh profile
 on:
   schedule:
     - cron: "17 8 * * *"   # daily, 08:17 UTC: the same calendar date in utc, berlin and california, off the hour to dodge the cron rush
+    - cron: "*/20 * * * *" # TEMPORARY: proves schedule events reach this workflow; removed once one has fired
   workflow_dispatch:
 
 permissions:
