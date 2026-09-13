@@ -28,10 +28,12 @@ const stateB = process.env.STATE_B === '1' && data.trailing14 === 0;
 const complaint = stateB ? 'nothing’s moved in weeks' : 'i can’t see what you build';
 const reply = stateB ? 'nothing new in 14 days.' : 'you’re looking at it.';
 const replyGrey = stateB ? 'the paint is the last 365 days.' : 'one stroke per day for the last year. busy days get bigger strokes.';
+// no commit counts on the card (owner's call); the colours are the key
 const key = split
   ? [['whaamkabaam.com', COL.coach, coachTotal], ['summerup', COL.summerup, summerupTotal], ['everything else', COL.other, elseTotal]]
-  : [['contributions', COL.coach, data.total], ['in public repos', GREY, data.public]];
-const totalLine = `${fmt(data.total)} in the last year`;
+  : [['commits', COL.coach, data.total]];
+const totalLine = '';
+const QUIET = process.env.CARD_STYLE === 'quiet';
 const discordLine = data.discord ? `${fmt(data.discord.members)} in the discord, checked ${data.discord.checked.slice(11, 16)} utc` : '';
 for (const [s, w] of [[complaint, 700], [reply, 500], [replyGrey, 500], [totalLine, 500], [discordLine, 500], ['a year ago', 500], [stamp, 500], ...key.map(k => [`${k[0]} ${fmt(k[2])}`, 500])]) { assertNoDashes(s); assertGlyphs(s, w); }
 
@@ -97,10 +99,10 @@ const bubble = (text, X0, y, size, pad, maxW) => {
 const keyRow = (X0, X1, y, size) => {
   let x = X0, line = 0, out = ''; const dot = size * .35;
   for (const [label, col, n] of key) {
-    const text = `${label} ${fmt(n)}`, w = dot * 2 + 8 + textWidth(text, 500, size);
+    const text = label, w = dot * 2 + 8 + textWidth(text, 500, size);
     if (x + w > X1 && x > X0) { x = X0; line++; }
     const yy = y + line * size * 1.8;
-    out += `<circle cx="${(x + dot).toFixed(1)}" cy="${(yy - size * .33).toFixed(1)}" r="${dot.toFixed(1)}" fill="${col}"/><text x="${(x + dot * 2 + 8).toFixed(1)}" y="${yy}" font-size="${size}" font-weight="500" fill="${GREY}">${esc(label)} <tspan fill="${PAPER}">${fmt(n)}</tspan></text>`;
+    out += `<circle cx="${(x + dot).toFixed(1)}" cy="${(yy - size * .33).toFixed(1)}" r="${dot.toFixed(1)}" fill="${col}"/><text x="${(x + dot * 2 + 8).toFixed(1)}" y="${yy}" font-size="${size}" font-weight="500" fill="${GREY}">${esc(label)}</text>`;
     x += w + size * 1.9;
   }
   return { svg: out, lines: line + 1 };
@@ -112,18 +114,22 @@ function wide() {
   const b = bubble(complaint, X0, 40, 44, 26, X1 - X0);
   const rY = b.bottom + 36;
   let gSize = 19; while (textWidth(reply + ' ' + replyGrey, 500, gSize) > X1 - (X0 + 30) && gSize > 14) gSize -= .5;
-  const TOP = rY + 56, BOT = TOP + 198, H = BOT + 86;
-  const k = keyRow(X0, X1, H - 48, 13);
-  return `${head(W, H)}
-<defs>${reveal(W, TOP, BOT)}</defs>
-${b.svg}
+  const TOP = QUIET ? 96 : rY + 56, BOT = TOP + 198, H = BOT + 64;
+  const k = keyRow(X0, X1, H - 26, 13);
+  const headline = QUIET
+    ? `<text x="${X0}" y="58" font-size="22" font-weight="700" letter-spacing="-0.4" fill="${PAPER}">the last 365 days of commits</text>
+<text x="${X0}" y="${TOP - 12}" font-size="11" font-weight="500" letter-spacing=".4" fill="${GREY}" opacity=".75">a year ago</text>`
+    : `${b.svg}
 ${glyph(X0, rY)}
 <text x="${X0 + 30}" y="${rY}" font-size="${gSize}" font-weight="500" fill="${PAPER}">${esc(reply)} <tspan fill="${GREY}">${esc(replyGrey)}</tspan></text>
-<text x="${X0}" y="${TOP - 12}" font-size="11" font-weight="500" letter-spacing=".4" fill="${GREY}" opacity=".75">a year ago</text>
+<text x="${X0}" y="${TOP - 12}" font-size="11" font-weight="500" letter-spacing=".4" fill="${GREY}" opacity=".75">a year ago</text>`;
+  return `${head(W, H)}
+<defs>${reveal(W, TOP, BOT)}</defs>
+${headline}
 <text x="${X1}" y="${TOP - 12}" text-anchor="end" font-size="11" font-weight="500" letter-spacing=".4" fill="${GREY}" opacity=".75">${esc(stamp)}</text>
 <g clip-path="url(#reveal)" fill="none" stroke-linecap="round">${painting(X0, X1, TOP, BOT, 1)}</g>
 ${k.svg}
-<text x="${X0}" y="${H - 24}" font-size="12" font-weight="500" fill="${GREY}">${esc(totalLine)}${discordLine ? ' · ' + esc(discordLine) : ''}</text>
+<text x="${X1}" y="${H - 26}" text-anchor="end" font-size="12" font-weight="500" fill="${GREY}">${esc(discordLine)}</text>
 </svg>
 `;
 }
@@ -144,7 +150,7 @@ ${glyph(X0, rY, .9)}
 <text x="${X1}" y="${TOP - 12}" text-anchor="end" font-size="11" font-weight="500" letter-spacing=".4" fill="${GREY}" opacity=".75">${esc(stamp)}</text>
 <g clip-path="url(#reveal)" fill="none" stroke-linecap="round">${painting(X0, X1, TOP, BOT, .62)}</g>
 ${k.svg}
-<text x="${X0}" y="${H - 22}" font-size="12" font-weight="500" fill="${GREY}">${esc(totalLine)}${discordLine ? ' · ' + esc(discordLine) : ''}</text>
+<text x="${X0}" y="${H - 22}" font-size="12" font-weight="500" fill="${GREY}">${esc(discordLine)}</text>
 </svg>
 `;
 }
