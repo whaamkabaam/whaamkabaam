@@ -34,11 +34,18 @@ async function rest(path, params = {}) {
   return { json: await r.json(), link: r.headers.get('link') || '' };
 }
 
-// --- calendar, primary: GraphQL with NO from/to. The default window is the
-// one github.com renders on the profile (verified 2026-09-12: 371 days,
-// identical to the logged-out fragment to the digit).
+// --- calendar, primary: GraphQL with an EXPLICIT 365-day window ending today
+// (UTC). The default window looked right on 2026-09-12 (371 cells, matched the
+// profile to the digit) and broke on 2026-09-13: a total spanning 373 days over
+// only 365 cells. Explicit from/to keeps the total and the cells consistent.
+function windowBounds() {
+  const to = new Date(); to.setUTCHours(23, 59, 59, 0);
+  const from = new Date(to); from.setUTCDate(from.getUTCDate() - 364); from.setUTCHours(0, 0, 0, 0);
+  return { from: from.toISOString().replace(/\.\d{3}Z$/, 'Z'), to: to.toISOString().replace(/\.\d{3}Z$/, 'Z') };
+}
 async function fromGraphql() {
-  const q = `query($login:String!, $after:String){ user(login:$login){ contributionsCollection{
+  const { from, to } = windowBounds();
+  const q = `query($login:String!, $after:String, $from:DateTime!, $to:DateTime!){ user(login:$login){ contributionsCollection(from:$from, to:$to){
     startedAt endedAt
     totalCommitContributions totalIssueContributions totalPullRequestContributions
     totalPullRequestReviewContributions totalRepositoryContributions restrictedContributionsCount
@@ -50,7 +57,7 @@ async function fromGraphql() {
     commitContributionsByRepository(maxRepositories:100){ repository{ nameWithOwner }
       contributions(first:100, after:$after){ pageInfo{ hasNextPage endCursor } nodes{ occurredAt commitCount } } }
   } } }`;
-  const d = await gql(q, { login: LOGIN, after: null });
+  const d = await gql(q, { login: LOGIN, after: null, from, to });
   const c = d.user.contributionsCollection;
   const days = c.contributionCalendar.weeks.flatMap(w => w.contributionDays).map(x => ({ date: x.date, count: x.contributionCount }));
   const pub = new Map();
@@ -63,7 +70,7 @@ async function fromGraphql() {
       for (const n of page.nodes) add(n.occurredAt, n.commitCount);
       if (!page.pageInfo.hasNextPage) break;
       // rare: a public repo with more than 100 active days in the window
-      const more = await gql(q, { login: LOGIN, after: page.pageInfo.endCursor });
+      const more = await gql(q, { login: LOGIN, after: page.pageInfo.endCursor, from, to });
       const again = more.user.contributionsCollection.commitContributionsByRepository.find(r => r.repository.nameWithOwner === repo.repository.nameWithOwner);
       if (!again) break;
       page = again.contributions;
@@ -113,9 +120,9 @@ async function main() {
   catch (e) { warn('graphql failed, using the public fragment:', e.message); cal = await fromHtml(); }
 
   const days = cal.days.map(d => ({ ...d, public: cal.pub.get(d.date) || 0 }));
-  const total = cal.total;
   const daySum = days.reduce((s, d) => s + d.count, 0);
-  if (daySum !== total) fail(`per-day counts sum to ${daySum} but the calendar total is ${total}`);
+  if (daySum !== cal.total) warn(`GitHub's calendar total ${cal.total} != the sum of its own day cells ${daySum}; the card draws the cells, so it prints ${daySum}`);
+  const total = daySum;
   const publicTotal = days.reduce((s, d) => s + d.public, 0);
   if (cal.typedPublic != null && cal.typedPublic !== publicTotal) warn(`typed public total ${cal.typedPublic} != per-day public sum ${publicTotal} (pagination or window edge)`);
   if (cal.restricted != null && cal.restricted + publicTotal !== total) warn(`restricted ${cal.restricted} + public ${publicTotal} != total ${total}; the reply uses restricted, the endpoints use the series`);
