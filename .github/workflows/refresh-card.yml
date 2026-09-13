@@ -2,9 +2,9 @@ name: refresh profile
 
 # Regenerates the profile artwork from live GitHub data and force-pushes the
 # result to the orphan `output` branch. main only ever carries source, so the
-# history a visitor sees stays human. The push itself counts as repository
-# activity, which is what keeps GitHub from disabling this schedule after 60
-# idle days.
+# history a visitor sees stays human. Assumed, not verified: that this push
+# counts as repository activity for GitHub's 60-idle-day schedule disable.
+# Check that the schedule is still enabled around 2026-11-10.
 
 on:
   schedule:
@@ -24,9 +24,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
 
@@ -46,7 +46,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           rm -rf /tmp/out && mkdir -p /tmp/out
-          cp -R assets/. /tmp/out/
+          cp assets/coach.svg assets/coach-narrow.svg /tmp/out/
           cp data/profile.json /tmp/out/profile.json
           cd /tmp/out
           git init -q -b output
