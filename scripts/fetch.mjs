@@ -89,7 +89,40 @@ async function fromGraphql() {
       page = again.contributions;
     }
   }
+  // GraphQL only listed public repos for this token? Then fetch the private
+  // side through REST (fine-grained tokens can), so the split stays honest.
+  const sawPrivate = c.commitContributionsByRepository.some(r => r.repository.isPrivate);
+  if (CAN_SEE_PRIVATE && !sawPrivate) {
+    const priv = await privateCommitsViaRest(from, to);
+    let n = 0; for (const [name, m] of priv) { byRepo.set(name, m); n += [...m.values()].reduce((a, b) => a + b, 0); }
+    warn(`graphql hid private repos from this token; counted ${n} private commits across ${priv.size} repos through rest`);
+  }
   return { source: 'graphql', days, total: c.contributionCalendar.totalContributions, restricted: c.restrictedContributionsCount, pub, byRepo, window: { startedAt: c.startedAt, endedAt: c.endedAt } };
+}
+
+// A fine-grained token can read private repos through REST even when GraphQL's
+// contributionsCollection hides them. Counts commits authored by the owner per
+// private repo per day inside the window.
+async function privateCommitsViaRest(from, to) {
+  const out = new Map();
+  let page = 1, repos = [];
+  for (;;) {
+    const { json, link } = await rest('/user/repos', { per_page: 100, page, affiliation: 'owner', visibility: 'private' });
+    repos = repos.concat(json);
+    if (!/rel="next"/.test(link) || ++page > 10) break;
+  }
+  for (const repo of repos) {
+    const m = new Map(); let p = 1;
+    for (;;) {
+      let res;
+      try { res = await rest(`/repos/${LOGIN}/${repo.name}/commits`, { per_page: 100, page: p, since: from, until: to, author: LOGIN }); }
+      catch (e) { warn(`rest commits ${repo.name}: ${e.message}`); break; }
+      for (const c of res.json) { const k = (c.commit?.author?.date || '').slice(0, 10); if (k) m.set(k, (m.get(k) || 0) + 1); }
+      if (!/rel="next"/.test(res.link) || ++p > 60) break;
+    }
+    if (m.size) out.set(repo.name, m);
+  }
+  return out;
 }
 
 async function fromHtml() {
@@ -167,14 +200,16 @@ async function main() {
     const other = new Map(perLabel.get('other') || []);
     for (const d of days) {
       const namedSum = named.reduce((s, [, m]) => s + (m.get(d.date) || 0), 0);
-      const rest = d.count - namedSum - (other.get(d.date) || 0);
-      if (rest > 0) other.set(d.date, (other.get(d.date) || 0) + rest);
+      const restDay = d.count - namedSum - (other.get(d.date) || 0);
+      if (restDay > 0) other.set(d.date, (other.get(d.date) || 0) + restDay);
     }
     const rows = named.map(([label, m]) => ({ label, total: [...m.values()].reduce((a, b) => a + b, 0), days: Object.fromEntries(m) }))
       .filter(r => r.total > 0).sort((a, b) => b.total - a.total);
     const otherTotal = [...other.values()].reduce((a, b) => a + b, 0);
     if (otherTotal > 0) rows.push({ label: 'other', total: otherTotal, days: Object.fromEntries(other) });
-    projects = rows;
+    const coach = rows.find(r => r.label === 'whaamkabaam.com');
+    if (!coach || coach.total === 0) { warn('split has no coach commits; publishing without a split'); projects = null; }
+    else projects = rows;
     const split = rows.reduce((s, r) => s + r.total, 0);
     if (split !== total) warn(`project split sums to ${split}, calendar total is ${total}`);
   }
