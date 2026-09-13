@@ -41,7 +41,11 @@ for (const [s, w] of [[complaint, 700], [reply, 500], [replyGrey, 500], [totalLi
 function rng(seed) { let a = seed >>> 0; return () => { a += 0x6D2B79F5; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 function colourFor(d) {
   if (!split) return COL.coach;
-  const c = proj['whaamkabaam.com']?.[d.date] || 0, s = proj['summerup']?.[d.date] || 0, o = Math.max(0, d.count - c - s);
+  // colour by the biggest counted bucket of the day; "other" is the counted
+  // remainder from the data, never the calendar residual (which on the rest
+  // path is mostly coach commits the author filter missed)
+  const c = proj['whaamkabaam.com']?.[d.date] || 0, s = proj['summerup']?.[d.date] || 0, o = proj['other']?.[d.date] || 0;
+  if (c + s + o === 0) return COL.coach;
   const m = Math.max(c, s, o); return m === c ? COL.coach : m === s ? COL.summerup : COL.other;
 }
 function painting(X0, X1, TOP, BOT, k) {
