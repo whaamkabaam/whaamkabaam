@@ -1,15 +1,19 @@
-// Fetches everything the card needs. Works with the default GITHUB_TOKEN of an
-// Actions run (it cannot read private repos, and does not need to: private
-// counts are public once "include private contributions" is on). Works with
-// no token at all too, by scraping the same public fragment github.com renders.
+// Fetches everything the cards need and writes data/profile.json.
 //
-// Writes data/profile.json: { generated, source, window, total, private, public,
-// trailing14, active_days, best_streak, busiest, days: [{date, count, public}] }
-import { writeFileSync, mkdirSync } from 'node:fs';
+// Tokens, in order of what they unlock:
+//   PROFILE_TOKEN  a fine-grained token of the owner that can see private repos:
+//                  unlocks the per-project split of the year (commits by repo).
+//   GITHUB_TOKEN   the Actions token: calendar totals incl. private counts
+//                  (because "include private contributions" is on), public repos.
+//   none           the public HTML fragment github.com renders, same numbers.
+// The Discord count needs no token at all.
+import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 
 const LOGIN = process.env.PROFILE_LOGIN || 'whaamkabaam';
-const TOKEN = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || '';
+const TOKEN = process.env.PROFILE_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || '';
+const CAN_SEE_PRIVATE = Boolean(process.env.PROFILE_TOKEN || process.env.ASSUME_OWNER_TOKEN);
 const UA = `${LOGIN}-profile-card`;
+const PROJECTS = JSON.parse(readFileSync(new URL('../projects.json', import.meta.url), 'utf8'));
 
 const warn = (...a) => console.error('warn:', ...a);
 const fail = (msg) => { console.error('fatal:', msg); process.exit(1); };
@@ -34,15 +38,16 @@ async function rest(path, params = {}) {
   return { json: await r.json(), link: r.headers.get('link') || '' };
 }
 
-// --- calendar, primary: GraphQL with an EXPLICIT 365-day window ending today
-// (UTC). The default window looked right on 2026-09-12 (371 cells, matched the
-// profile to the digit) and broke on 2026-09-13: a total spanning 373 days over
-// only 365 cells. Explicit from/to keeps the total and the cells consistent.
+// Explicit 365-day window ending today (UTC). The default window drifted on
+// 2026-09-13 (a total spanning 373 days over 365 cells); explicit bounds keep
+// the total and the cells consistent.
 function windowBounds() {
   const to = new Date(); to.setUTCHours(23, 59, 59, 0);
   const from = new Date(to); from.setUTCDate(from.getUTCDate() - 364); from.setUTCHours(0, 0, 0, 0);
-  return { from: from.toISOString().replace(/\.\d{3}Z$/, 'Z'), to: to.toISOString().replace(/\.\d{3}Z$/, 'Z') };
+  const iso = d => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
+  return { from: iso(from), to: iso(to) };
 }
+
 async function fromGraphql() {
   const { from, to } = windowBounds();
   const q = `query($login:String!, $after:String, $from:DateTime!, $to:DateTime!){ user(login:$login){ contributionsCollection(from:$from, to:$to){
@@ -50,37 +55,43 @@ async function fromGraphql() {
     totalCommitContributions totalIssueContributions totalPullRequestContributions
     totalPullRequestReviewContributions totalRepositoryContributions restrictedContributionsCount
     contributionCalendar{ totalContributions weeks{ contributionDays{ date contributionCount } } }
-    repositoryContributions(first:100){ nodes{ occurredAt } }
-    issueContributions(first:100){ nodes{ occurredAt } }
-    pullRequestContributions(first:100){ nodes{ occurredAt } }
-    pullRequestReviewContributions(first:100){ nodes{ occurredAt } }
-    commitContributionsByRepository(maxRepositories:100){ repository{ nameWithOwner }
+    repositoryContributions(first:100){ nodes{ occurredAt repository{ name isPrivate } } }
+    issueContributions(first:100){ nodes{ occurredAt issue{ repository{ isPrivate } } } }
+    pullRequestContributions(first:100){ nodes{ occurredAt pullRequest{ repository{ isPrivate } } } }
+    pullRequestReviewContributions(first:100){ nodes{ occurredAt pullRequestReview{ repository{ isPrivate } } } }
+    commitContributionsByRepository(maxRepositories:100){ repository{ name isPrivate }
       contributions(first:100, after:$after){ pageInfo{ hasNextPage endCursor } nodes{ occurredAt commitCount } } }
   } } }`;
   const d = await gql(q, { login: LOGIN, after: null, from, to });
   const c = d.user.contributionsCollection;
   const days = c.contributionCalendar.weeks.flatMap(w => w.contributionDays).map(x => ({ date: x.date, count: x.contributionCount }));
-  const pub = new Map();
-  const add = (iso, n = 1) => { const k = iso.slice(0, 10); pub.set(k, (pub.get(k) || 0) + n); };
-  for (const list of [c.repositoryContributions, c.issueContributions, c.pullRequestContributions, c.pullRequestReviewContributions])
-    for (const n of list.nodes) add(n.occurredAt);
+  const pub = new Map();                         // date -> public typed contributions
+  const byRepo = new Map();                      // repo -> Map(date -> commits)
+  const addPub = (iso, n = 1) => { const k = iso.slice(0, 10); pub.set(k, (pub.get(k) || 0) + n); };
+  for (const n of c.repositoryContributions.nodes) if (!n.repository.isPrivate) addPub(n.occurredAt);
+  const privOf = n => (n.repository || n.issue?.repository || n.pullRequest?.repository || n.pullRequestReview?.repository || {}).isPrivate;
+  for (const list of [c.issueContributions, c.pullRequestContributions, c.pullRequestReviewContributions])
+    for (const n of list.nodes) if (!privOf(n)) addPub(n.occurredAt);
   for (const repo of c.commitContributionsByRepository) {
+    const name = repo.repository.name;
+    const m = byRepo.get(name) || new Map(); byRepo.set(name, m);
     let page = repo.contributions;
     for (;;) {
-      for (const n of page.nodes) add(n.occurredAt, n.commitCount);
+      for (const n of page.nodes) {
+        const k = n.occurredAt.slice(0, 10);
+        m.set(k, (m.get(k) || 0) + n.commitCount);
+        if (!repo.repository.isPrivate) addPub(n.occurredAt, n.commitCount);
+      }
       if (!page.pageInfo.hasNextPage) break;
-      // rare: a public repo with more than 100 active days in the window
       const more = await gql(q, { login: LOGIN, after: page.pageInfo.endCursor, from, to });
-      const again = more.user.contributionsCollection.commitContributionsByRepository.find(r => r.repository.nameWithOwner === repo.repository.nameWithOwner);
+      const again = more.user.contributionsCollection.commitContributionsByRepository.find(r => r.repository.name === name);
       if (!again) break;
       page = again.contributions;
     }
   }
-  const typed = c.totalCommitContributions + c.totalIssueContributions + c.totalPullRequestContributions + c.totalPullRequestReviewContributions + c.totalRepositoryContributions;
-  return { source: 'graphql', days, total: c.contributionCalendar.totalContributions, restricted: c.restrictedContributionsCount, typedPublic: typed, pub, window: { startedAt: c.startedAt, endedAt: c.endedAt } };
+  return { source: 'graphql', days, total: c.contributionCalendar.totalContributions, restricted: c.restrictedContributionsCount, pub, byRepo, window: { startedAt: c.startedAt, endedAt: c.endedAt } };
 }
 
-// --- calendar, fallback: the logged-out fragment github.com itself renders.
 async function fromHtml() {
   const r = await fetch(`https://github.com/users/${LOGIN}/contributions`, { headers: { 'user-agent': 'Mozilla/5.0' } });
   if (!r.ok) throw new Error(`fragment ${r.status}`);
@@ -89,7 +100,6 @@ async function fromHtml() {
   const tips = new Map([...html.matchAll(/<tool-tip[^>]*for="([^"]+)"[^>]*>\s*(No|[\d,]+) contributions?/g)].map(m => [m[1], m[2] === 'No' ? 0 : Number(m[2].replace(/,/g, ''))]));
   const days = cells.map(c => ({ date: c.date, count: tips.get(c.id) ?? 0 })).sort((a, b) => a.date.localeCompare(b.date));
   if (days.length < 300) throw new Error(`fragment parsed only ${days.length} days`);
-  // public series without a token: commit dates in public repos + repo creation dates
   const { json: repos } = await rest(`/users/${LOGIN}/repos`, { per_page: 100, type: 'owner' });
   const pub = new Map();
   const add = (iso, n = 1) => { const k = iso.slice(0, 10); pub.set(k, (pub.get(k) || 0) + n); };
@@ -103,14 +113,23 @@ async function fromHtml() {
       if (!/rel="next"/.test(link) || ++page > 20) break;
     }
   }
-  return { source: 'html', days, total: days.reduce((s, d) => s + d.count, 0), restricted: null, typedPublic: null, pub, window: null };
+  return { source: 'html', days, total: days.reduce((s, d) => s + d.count, 0), restricted: null, pub, byRepo: new Map(), window: null };
+}
+
+async function discord() {
+  try {
+    const r = await fetch('https://discord.com/api/v10/invites/whaam?with_counts=true', { headers: { 'user-agent': UA } });
+    if (!r.ok) throw new Error(`discord ${r.status}`);
+    const j = await r.json();
+    if (!j.approximate_member_count) throw new Error('discord: no member count');
+    return { members: j.approximate_member_count, online: j.approximate_presence_count, checked: new Date().toISOString() };
+  } catch (e) { warn(e.message); return null; }
 }
 
 async function previousPublished() {
   try {
     const r = await fetch(`https://raw.githubusercontent.com/${LOGIN}/${LOGIN}/output/profile.json`, { headers: { 'user-agent': UA } });
-    if (!r.ok) return null;
-    return await r.json();
+    return r.ok ? await r.json() : null;
   } catch { return null; }
 }
 
@@ -121,31 +140,58 @@ async function main() {
 
   const days = cal.days.map(d => ({ ...d, public: cal.pub.get(d.date) || 0 }));
   const daySum = days.reduce((s, d) => s + d.count, 0);
-  if (daySum !== cal.total) warn(`GitHub's calendar total ${cal.total} != the sum of its own day cells ${daySum}; the card draws the cells, so it prints ${daySum}`);
+  if (daySum !== cal.total) warn(`GitHub's calendar total ${cal.total} != the sum of its day cells ${daySum}; the card draws the cells`);
   const total = daySum;
   const publicTotal = days.reduce((s, d) => s + d.public, 0);
-  if (cal.typedPublic != null && cal.typedPublic !== publicTotal) warn(`typed public total ${cal.typedPublic} != per-day public sum ${publicTotal} (pagination or window edge)`);
-  if (cal.restricted != null && cal.restricted + publicTotal !== total) warn(`restricted ${cal.restricted} + public ${publicTotal} != total ${total}; the reply uses restricted, the endpoints use the series`);
-  const priv = cal.restricted ?? Math.max(0, total - publicTotal);
-
-  // sanity floors: the only failure that matters is the private counts vanishing
-  if (priv === 0 && total > 0) fail('restricted count is 0: private contributions are no longer visible to this token, refusing to publish a card that would lie');
+  // restrictedContributionsCount is what THIS token cannot see. For the Actions
+  // token that is the private total; for a token that sees private repos it is 0
+  // and the private total is everything that is not public.
+  const priv = (cal.restricted && cal.restricted > 0) ? cal.restricted : Math.max(0, total - publicTotal);
+  if (!CAN_SEE_PRIVATE && cal.source === 'graphql' && (cal.restricted || 0) === 0 && total > publicTotal) fail('restricted count is 0 on a token that should not see private repos; refusing to publish');
+  if (priv === 0 && total > 0) fail('no private contributions found at all; refusing to publish a card that would lie');
   const prev = await previousPublished();
   if (prev && typeof prev.total === 'number' && total < prev.total * 0.5) fail(`total ${total} is less than half of the last published ${prev.total}; refusing to publish`);
+
+  // per-project split: only when the token can see private repos (the split
+  // would otherwise be "plox 100%", contradicting the totals on the same card)
+  let projects = null;
+  if (CAN_SEE_PRIVATE && cal.byRepo.size) {
+    const perLabel = new Map();
+    for (const [repo, m] of cal.byRepo) {
+      const label = PROJECTS[repo] || 'other';
+      const series = perLabel.get(label) || new Map(); perLabel.set(label, series);
+      for (const [date, n] of m) series.set(date, (series.get(date) || 0) + n);
+    }
+    // everything in the calendar that is not a commit to a listed repo is "other"
+    const named = [...perLabel.entries()].filter(([l]) => l !== 'other');
+    const other = new Map(perLabel.get('other') || []);
+    for (const d of days) {
+      const namedSum = named.reduce((s, [, m]) => s + (m.get(d.date) || 0), 0);
+      const rest = d.count - namedSum - (other.get(d.date) || 0);
+      if (rest > 0) other.set(d.date, (other.get(d.date) || 0) + rest);
+    }
+    const rows = named.map(([label, m]) => ({ label, total: [...m.values()].reduce((a, b) => a + b, 0), days: Object.fromEntries(m) }))
+      .filter(r => r.total > 0).sort((a, b) => b.total - a.total);
+    const otherTotal = [...other.values()].reduce((a, b) => a + b, 0);
+    if (otherTotal > 0) rows.push({ label: 'other', total: otherTotal, days: Object.fromEntries(other) });
+    projects = rows;
+    const split = rows.reduce((s, r) => s + r.total, 0);
+    if (split !== total) warn(`project split sums to ${split}, calendar total is ${total}`);
+  }
 
   let streak = 0, best = 0, active = 0, busiest = { date: null, count: 0 };
   for (const d of days) {
     if (d.count > 0) { streak++; active++; best = Math.max(best, streak); } else streak = 0;
     if (d.count > busiest.count) busiest = { date: d.date, count: d.count };
   }
-  const trailing14 = days.slice(-14).reduce((s, d) => s + d.count, 0);
   const out = {
     generated: new Date().toISOString(), login: LOGIN, source: cal.source, window: cal.window,
-    total, private: priv, public: publicTotal, trailing14, active_days: active, days_in_window: days.length, best_streak: best, busiest,
-    days,
+    total, private: priv, public: publicTotal, trailing14: days.slice(-14).reduce((s, d) => s + d.count, 0),
+    active_days: active, days_in_window: days.length, best_streak: best, busiest,
+    projects, discord: await discord(), days,
   };
   mkdirSync('data', { recursive: true });
   writeFileSync('data/profile.json', JSON.stringify(out, null, 1) + '\n');
-  console.log(JSON.stringify({ source: out.source, total, private: priv, public: publicTotal, days: days.length, last: days.at(-1).date, trailing14, active, best, busiest }));
+  console.log(JSON.stringify({ source: out.source, total, private: priv, public: publicTotal, days: days.length, last: days.at(-1).date, projects: projects ? projects.map(p => `${p.label} ${p.total}`) : null, discord: out.discord && out.discord.members }));
 }
 main().catch(e => { console.error(e); process.exit(1); });
