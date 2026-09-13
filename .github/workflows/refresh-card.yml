@@ -32,10 +32,14 @@ jobs:
       - name: fetch data and render assets
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          # optional: a fine-grained token of the owner (metadata read on all repos,
+          # gists write). Unlocks the per-project split and the pinned gist.
+          PROFILE_TOKEN: ${{ secrets.PROFILE_TOKEN }}
         run: |
           node scripts/fetch.mjs
           node scripts/render.mjs
           node scripts/lint.mjs
+          node scripts/gist.mjs
 
       - name: publish to the output branch
         run: |
@@ -45,7 +49,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           rm -rf /tmp/out && mkdir -p /tmp/out
-          cp assets/coach.svg assets/coach-narrow.svg /tmp/out/
+          cp assets/coach.svg assets/coach-narrow.svg assets/demo.svg assets/demo-narrow.svg assets/social.svg /tmp/out/
           cp data/profile.json /tmp/out/profile.json
           cd /tmp/out
           git init -q -b output
