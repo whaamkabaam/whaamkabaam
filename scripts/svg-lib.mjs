@@ -47,7 +47,7 @@ export function weeklyCumulative(days, key) {
 // so the runtime can size bubbles and align labels without a font library.
 const METRICS = JSON.parse(readFileSync(new URL('../fonts/metrics.json', import.meta.url), 'utf8'));
 export function textWidth(str, weight = 400, size = 16, letterSpacing = 0) {
-  const table = METRICS[String(weight)] || METRICS['400'];
+  const table = METRICS[String(weight)] || METRICS['500'];
   let em = 0;
   for (const ch of String(str)) em += table[ch] ?? table['n'] ?? 0.55;
   return em * size + letterSpacing * Math.max(0, String(str).length - 1);
@@ -56,9 +56,19 @@ export function textWidth(str, weight = 400, size = 16, letterSpacing = 0) {
 // Checks against the measured glyph table (fonts/metrics.json), which was built
 // from the exact woff2 subsets in fonts/. Re-run `npm run measure` after changing
 // those files, or this check will pass for glyphs the font no longer carries.
-export function assertGlyphs(str) {
-  const table = METRICS['700'];
-  for (const ch of String(str)) if (!(ch in table)) throw new Error(`glyph not in the embedded subset: U+${ch.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')} in "${str}"`);
+export function assertGlyphs(str, weight = 700) {
+  const table = METRICS[String(weight)];
+  if (!table) throw new Error(`no glyph table for weight ${weight}; run npm run measure`);
+  for (const ch of String(str)) if (!(ch in table)) throw new Error(`glyph not in the embedded ${weight} subset: U+${ch.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')} in "${str}"`);
+}
+// greedy word wrap using the measured widths
+export function wrapText(str, weight, size, maxWidth, letterSpacing = 0) {
+  const words = String(str).split(' '); const lines = []; let cur = '';
+  for (const w of words) {
+    const t = cur ? cur + ' ' + w : w;
+    if (textWidth(t, weight, size, letterSpacing) <= maxWidth || !cur) cur = t; else { lines.push(cur); cur = w; }
+  }
+  if (cur) lines.push(cur); return lines;
 }
 export function assertNoDashes(str) {
   if (/[–—―−]/.test(str)) throw new Error(`dash character in card copy: "${str}"`);

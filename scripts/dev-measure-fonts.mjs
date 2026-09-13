@@ -2,7 +2,7 @@
 // canvas so the runtime renderer can size boxes without a font library.
 import { chromium } from 'playwright';
 import { readFileSync, writeFileSync } from 'node:fs';
-const weights = { 400: 'inter-Regular.woff2', 500: 'inter-Medium.woff2', 600: 'inter-SemiBold.woff2', 700: 'inter-Bold.woff2' };
+const weights = { 500: 'inter-Medium.woff2', 700: 'inter-Bold.woff2' };
 const faces = Object.entries(weights).map(([w, f]) => `@font-face{font-family:'InterM';font-weight:${w};src:url(data:font/woff2;base64,${readFileSync('fonts/' + f).toString('base64')}) format('woff2')}`).join('\n');
 const chars = Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i)).concat([' ', '·', '’', '–']);
 const b = await chromium.launch();
