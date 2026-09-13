@@ -15,16 +15,16 @@ i build an aim coach. you tell it how your aim feels and it changes your mouse a
 
 **[summerup](https://summerup.berlin)** a week-long startup hackathon at code berlin. i co-organise it. teams have to sell before they build.
 
-before the coach i did gaming automation and small ml models, which is where the curve math comes from. at ten i ran a minecraft youtube channel. at fifteen i sold a network of 30+ instagram pages.
+before the coach i did gaming automation and small ml models, which is where the curve math comes from. minecraft youtube channel as a kid, then a network of 30+ instagram pages i sold at 15.
 
 software engineering at code university berlin. spent summer 2026 at the stanford international honors program.
 
 [discord](https://discord.gg/whaam) · [tiktok](https://tiktok.com/@whaamkabaam) · [twitch](https://twitch.tv/whaamkabaam)
 
 <!--
-the painting is an svg on the output branch of this repo, one for desktop and one for phones. each stroke is one day of commits. the random seed is the date, so the same data draws the same picture. nothing on this page is loaded from a third party. the colours need a token that can see the private repos; without it every day is gold.
+the painting is an svg on the output branch of this repo, one for desktop and one for phones. each stroke is one day of commits. the random seed is the date, so it draws the same every run. nothing on this page is loaded from a third party. the colours need a token that can see the private repos. without one everything renders gold.
 
-the date on the card is the last day github had data for when the job last ran. if the job stops, the date stops moving.
+the date on the card is the last day github had data for when the job last ran.
 
 the job commits as github-actions[bot] to a non-default branch, so redrawing the card does not add to the count on it.
 
