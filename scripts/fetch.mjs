@@ -64,6 +64,7 @@ async function fromGraphql() {
   } } }`;
   const d = await gql(q, { login: LOGIN, after: null, from, to });
   const c = d.user.contributionsCollection;
+  let restSplit = false;
   const days = c.contributionCalendar.weeks.flatMap(w => w.contributionDays).map(x => ({ date: x.date, count: x.contributionCount }));
   const pub = new Map();                         // date -> public typed contributions
   const byRepo = new Map();                      // repo -> Map(date -> commits)
@@ -96,8 +97,9 @@ async function fromGraphql() {
     const priv = await privateCommitsViaRest(from, to);
     let n = 0; for (const [name, m] of priv) { byRepo.set(name, m); n += [...m.values()].reduce((a, b) => a + b, 0); }
     warn(`graphql hid private repos from this token; counted ${n} private commits across ${priv.size} repos through rest`);
+    restSplit = true;
   }
-  return { source: 'graphql', days, total: c.contributionCalendar.totalContributions, restricted: c.restrictedContributionsCount, pub, byRepo, window: { startedAt: c.startedAt, endedAt: c.endedAt } };
+  return { source: 'graphql', days, total: c.contributionCalendar.totalContributions, restricted: c.restrictedContributionsCount, pub, byRepo, restSplit, window: { startedAt: c.startedAt, endedAt: c.endedAt } };
 }
 
 // A fine-grained token can read private repos through REST even when GraphQL's
@@ -146,7 +148,7 @@ async function fromHtml() {
       if (!/rel="next"/.test(link) || ++page > 20) break;
     }
   }
-  return { source: 'html', days, total: days.reduce((s, d) => s + d.count, 0), restricted: null, pub, byRepo: new Map(), window: null };
+  return { source: 'html', days, total: days.reduce((s, d) => s + d.count, 0), restricted: null, pub, byRepo: new Map(), restSplit: false, window: null };
 }
 
 async function discord() {
@@ -198,7 +200,11 @@ async function main() {
     // everything in the calendar that is not a commit to a listed repo is "other"
     const named = [...perLabel.entries()].filter(([l]) => l !== 'other');
     const other = new Map(perLabel.get('other') || []);
-    for (const d of days) {
+    // The part of the calendar no named repo accounts for is "other" only when
+    // the per-repo numbers came from GitHub's own contribution counts. The REST
+    // path under-counts (author-filtered commits), so its gap is mostly missed
+    // coach commits and must not be painted as "everything else".
+    if (!cal.restSplit) for (const d of days) {
       const namedSum = named.reduce((s, [, m]) => s + (m.get(d.date) || 0), 0);
       const restDay = d.count - namedSum - (other.get(d.date) || 0);
       if (restDay > 0) other.set(d.date, (other.get(d.date) || 0) + restDay);
