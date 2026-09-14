@@ -1,6 +1,6 @@
 <picture>
   <source media="(max-width: 500px)" srcset="https://raw.githubusercontent.com/whaamkabaam/whaamkabaam/output/coach-narrow.svg">
-  <img alt="a drip painting of my last 365 days on github. one stroke per day, bigger on busy days. gold is whaamkabaam.com, white is summerup, orange is everything else. under it: the counts, the date, and the discord member count. above it, the line 'i can't see what you build' and the reply 'you're looking at it'." src="https://raw.githubusercontent.com/whaamkabaam/whaamkabaam/output/coach.svg">
+  <img alt="a drip painting of my last 365 days on github. one stroke per day, bigger on busy days. gold is whaamkabaam.com, white is summerup, orange is everything else. under it: the date and the discord member count." src="https://raw.githubusercontent.com/whaamkabaam/whaamkabaam/output/coach.svg">
 </picture>
 
 i build an aim coach. you tell it how your aim feels and it changes your mouse acceleration curve.

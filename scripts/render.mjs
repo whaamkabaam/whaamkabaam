@@ -33,7 +33,7 @@ const key = split
   ? [['whaamkabaam.com', COL.coach, coachTotal], ['summerup', COL.summerup, summerupTotal], ['everything else', COL.other, elseTotal]]
   : [['commits', COL.coach, data.total]];
 const totalLine = '';
-const QUIET = process.env.CARD_STYLE === 'quiet';
+const QUIET = true; // the bubble and reply were retired on 2026-09-14
 const discordLine = data.discord ? `${fmt(data.discord.members)} in the discord, checked ${data.discord.checked.slice(11, 16)} utc` : '';
 for (const [s, w] of [[complaint, 700], [reply, 500], [replyGrey, 500], [totalLine, 500], [discordLine, 500], ['a year ago', 500], [stamp, 500], ...key.map(k => [`${k[0]} ${fmt(k[2])}`, 500])]) { assertNoDashes(s); assertGlyphs(s, w); }
 
@@ -84,8 +84,8 @@ function painting(X0, X1, TOP, BOT, k) {
   return paint;
 }
 const head = (W, H) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
-<title>${esc(complaint)}</title>
-<desc>${esc(reply)} ${esc(replyGrey)} ${key.map(k => `${k[0]}: ${fmt(k[2])}`).join(', ')}. ${esc(totalLine)}, as of ${esc(stamp)}. ${esc(discordLine)}</desc>
+<title>the last 365 days of commits</title>
+<desc>one stroke of paint per day, bigger on busy days. ${key.map(k => `${k[0]}: ${fmt(k[2])}`).join(', ')}. ${esc(totalLine)}, as of ${esc(stamp)}. ${esc(discordLine)}</desc>
 <style>
 ${fontFace(500, 'inter-Medium.woff2')}
 ${fontFace(700, 'inter-Bold.woff2')}
@@ -139,17 +139,12 @@ ${k.svg}
 }
 function narrow() {
   const W = 400, X0 = 24, X1 = 376;
-  const b = bubble(complaint, X0, 24, 30, 18, X1 - X0);
-  const rY = b.bottom + 30;
-  const TOP = rY + 54, BOT = TOP + 210;
+  const TOP = 92, BOT = TOP + 210;
   const k = keyRow(X0, X1, BOT + 40, 12);
   const H = BOT + 40 + (k.lines - 1) * 12 * 1.8 + 46;
   return `${head(W, H)}
 <defs>${reveal(W, TOP, BOT)}</defs>
-${b.svg}
-${glyph(X0, rY, .9)}
-<text x="${X0 + 26}" y="${rY}" font-size="17" font-weight="500" fill="${PAPER}">${esc(reply)}</text>
-<text x="${X0}" y="${rY + 22}" font-size="13" font-weight="500" fill="${GREY}">${esc(replyGrey)}</text>
+<text x="${X0}" y="52" font-size="20" font-weight="700" letter-spacing="-0.3" fill="${PAPER}">the last 365 days of commits</text>
 <text x="${X0}" y="${TOP - 12}" font-size="11" font-weight="500" letter-spacing=".4" fill="${GREY}" opacity=".75">a year ago</text>
 <text x="${X1}" y="${TOP - 12}" text-anchor="end" font-size="11" font-weight="500" letter-spacing=".4" fill="${GREY}" opacity=".75">${esc(stamp)}</text>
 <g clip-path="url(#reveal)" fill="none" stroke-linecap="round">${painting(X0, X1, TOP, BOT, .62)}</g>
