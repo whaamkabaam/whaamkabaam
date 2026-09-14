@@ -56,17 +56,21 @@ function cubicLen(x0, y0, c1x, c1y, c2x, c2y, x1, y1) {
     L += Math.hypot(x - px, y - py); px = x; py = y; }
   return L;
 }
-// The load animation: strokes draw themselves in date order (left to right),
-// droplets pop as each stroke lands, pools splat with a little overshoot.
-// Base attributes are the finished painting, so no SMIL still shows it all.
-const T0 = 0.35, SPAN = 2.7;           // seconds: first stroke, and the spread over the year
+// The load animation, modelled on a throw rather than a pen: at impact the whole
+// arc lands within about a tenth of a second in the direction it was flung, the
+// pool bursts outward from the impact point with a little overshoot, and the
+// droplets spray out from that point to where they settle. Throws land in date
+// order. Base attributes are the finished painting, so no SMIL still shows it all.
+const T0 = 0.3, SPAN = 2.8;           // seconds: first throw, and the spread over the year
 function painting(X0, X1, TOP, BOT, k, animate = true) {
   let paint = '';
   const n = data.days.length;
-  const anim = (attr, from, to, begin, dur, spline = '0.2 0.8 0.2 1') => animate
-    ? `<set attributeName="${attr}" to="${from}" begin="0s" dur="${begin.toFixed(2)}s"/><animate attributeName="${attr}" from="${from}" to="${to}" begin="${begin.toFixed(2)}s" dur="${dur}s" calcMode="spline" keySplines="${spline}" fill="freeze"/>` : '';
-  const splat = (attr, to, begin) => animate
-    ? `<set attributeName="${attr}" to="0" begin="0s" dur="${begin.toFixed(2)}s"/><animate attributeName="${attr}" values="0;${(to * 1.3).toFixed(1)};${to}" keyTimes="0;0.6;1" begin="${begin.toFixed(2)}s" dur="0.4s" calcMode="spline" keySplines="0.2 0.8 0.3 1;0.4 0 0.6 1" fill="freeze"/>` : '';
+  const f2 = v => Number(v).toFixed(2);
+  const hold = (attr, val, until) => animate ? `<set attributeName="${attr}" to="${val}" begin="0s" dur="${f2(until)}s"/>` : '';
+  const anim = (attr, from, to, begin, dur, spline = '0.1 0.8 0.2 1') => animate
+    ? `${hold(attr, from, begin)}<animate attributeName="${attr}" from="${from}" to="${to}" begin="${f2(begin)}s" dur="${f2(dur)}s" calcMode="spline" keySplines="${spline}" fill="freeze"/>` : '';
+  const burst = (attr, to, begin, dur = 0.22) => animate
+    ? `${hold(attr, 0, begin)}<animate attributeName="${attr}" values="0;${f2(to * 1.35)};${f2(to)}" keyTimes="0;0.55;1" begin="${f2(begin)}s" dur="${f2(dur)}s" calcMode="spline" keySplines="0.1 0.9 0.2 1;0.4 0 0.6 1" fill="freeze"/>` : '';
   data.days.forEach((d, i) => {
     if (!d.count) return;
     const r = rng(Number(d.date.replace(/-/g, '')));
@@ -84,26 +88,30 @@ function painting(X0, X1, TOP, BOT, k, animate = true) {
       const c2x = x + (ex - x) * .7 + (r() - .5) * len * .5, c2y = y + (ey - y) * .7 + (r() - .5) * len * .5;
       const w = (0.5 + r() * 1.7 + (d.count > 100 ? 0.6 : 0)) * Math.max(k, .8);
       const L = Math.ceil(cubicLen(x, y, c1x, c1y, c2x, c2y, ex, ey) * 1.03) + 1;
-      const tStroke = tDay + r() * 0.18, dDraw = 0.28 + Math.min(0.5, L / 400);
-      paint += `<path d="M${x.toFixed(1)} ${y.toFixed(1)}C${c1x.toFixed(1)} ${c1y.toFixed(1)} ${c2x.toFixed(1)} ${c2y.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}" stroke="${t}" stroke-width="${w.toFixed(2)}" opacity="${(0.7 + r() * .3).toFixed(2)}" stroke-dasharray="${L}" stroke-dashoffset="0">${anim('stroke-dashoffset', L, 0, tStroke, dDraw.toFixed(2), '0.1 0.7 0.2 1')}</path>`;
-      // pooled paint where the fling lands, then droplets along the way
+      const tHit = tDay + r() * 0.2;                       // the throw hits
+      const dLand = 0.07 + Math.min(0.08, L / 1500);      // the arc lands within a blink
+      paint += `<path d="M${x.toFixed(1)} ${y.toFixed(1)}C${c1x.toFixed(1)} ${c1y.toFixed(1)} ${c2x.toFixed(1)} ${c2y.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}" stroke="${t}" stroke-width="${w.toFixed(2)}" opacity="${(0.7 + r() * .3).toFixed(2)}" stroke-dasharray="${L}" stroke-dashoffset="0">${anim('stroke-dashoffset', L, 0, tHit, dLand, '0.3 0 0.7 1')}</path>`;
+      // the pool bursts where the paint hits
       const prx = (w * 1.6 + r() * 2.2 * k), pry = (w * 1.1 + r() * 1.4 * k);
-      paint += `<ellipse cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" rx="${prx.toFixed(1)}" ry="${pry.toFixed(1)}" fill="${t}" opacity=".9">${splat('rx', prx, tStroke + dDraw * 0.85)}${splat('ry', pry, tStroke + dDraw * 0.85)}</ellipse>`;
+      const tPool = tHit + dLand * 0.8;
+      paint += `<ellipse cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" rx="${prx.toFixed(1)}" ry="${pry.toFixed(1)}" fill="${t}" opacity=".9">${burst('rx', prx, tPool)}${burst('ry', pry, tPool)}</ellipse>`;
+      // droplets spray out from the impact point to where they settle
       const drops = 1 + Math.floor(r() * 4);
       let dropsSvg = '';
       for (let q = 0; q < drops; q++) {
         const u = r(); const px = x + (ex - x) * u + (r() - .5) * 14 * k, py = y + (ey - y) * u + (r() - .5) * 14 * k;
-        dropsSvg += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${((0.5 + r() * 1.6) * Math.max(k, .8)).toFixed(1)}" fill="${t}" opacity="${(0.6 + r() * .4).toFixed(2)}"/>`;
+        dropsSvg += `<circle cx="${(px - ex).toFixed(1)}" cy="${(py - ey).toFixed(1)}" r="${((0.5 + r() * 1.6) * Math.max(k, .8)).toFixed(1)}" fill="${t}" opacity="${(0.6 + r() * .4).toFixed(2)}"/>`;
       }
-      paint += `<g opacity="1">${anim('opacity', 0, 1, tStroke + dDraw * 0.6, '0.25')}${dropsSvg}</g>`;
+      const sprayAnim = animate ? `${hold('opacity', 0, tPool)}<animate attributeName="opacity" from="0" to="1" begin="${f2(tPool)}s" dur="0.08s" fill="freeze"/><animateTransform attributeName="transform" type="scale" additive="sum" from="0" to="1" begin="${f2(tPool)}s" dur="0.26s" calcMode="spline" keySplines="0.1 0.9 0.3 1" fill="freeze"/>` : '';
+      paint += `<g transform="translate(${ex.toFixed(1)} ${ey.toFixed(1)})" opacity="1">${sprayAnim}${dropsSvg}</g>`;
     }
     if (d.count >= 60) {   // heavy days pool and run
       const x = cx + (r() - .5) * 10 * k, y = TOP + 20 * k + r() * (BOT - TOP - 60 * k), rad = (2.5 + Math.sqrt(d.count) * .5) * k;
       const len = (8 + Math.sqrt(d.count) * 1.8) * k, wob = (r() - .5) * 8 * k;
-      const tPool = tDay + 0.12;
-      paint += `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${rad.toFixed(1)}" ry="${(rad * .8).toFixed(1)}" fill="${col}" opacity=".95">${splat('rx', rad, tPool)}${splat('ry', rad * .8, tPool)}</ellipse>`;
+      const tPool = tDay + 0.1;
+      paint += `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${rad.toFixed(1)}" ry="${(rad * .8).toFixed(1)}" fill="${col}" opacity=".95">${burst('rx', rad, tPool, 0.3)}${burst('ry', rad * .8, tPool, 0.3)}</ellipse>`;
       const runL = Math.ceil(len * 1.2) + 1;
-      paint += `<path d="M${x.toFixed(1)} ${y.toFixed(1)}q${wob.toFixed(1)} ${(len * .5).toFixed(1)} ${(wob * .4).toFixed(1)} ${len.toFixed(1)}" stroke="${col}" stroke-width="${Math.max(1, rad * .3).toFixed(1)}" opacity=".9" stroke-dasharray="${runL}" stroke-dashoffset="0">${anim('stroke-dashoffset', runL, 0, tPool + 0.3, '0.9', '0.4 0 0.8 0.6')}</path><circle cx="${(x + wob * .4).toFixed(1)}" cy="${(y + len).toFixed(1)}" r="${Math.max(1.2, rad * .32).toFixed(1)}" fill="${col}">${splat('r', Math.max(1.2, rad * .32), tPool + 1.1)}</circle>`;
+      paint += `<path d="M${x.toFixed(1)} ${y.toFixed(1)}q${wob.toFixed(1)} ${(len * .5).toFixed(1)} ${(wob * .4).toFixed(1)} ${len.toFixed(1)}" stroke="${col}" stroke-width="${Math.max(1, rad * .3).toFixed(1)}" opacity=".9" stroke-dasharray="${runL}" stroke-dashoffset="0">${anim('stroke-dashoffset', runL, 0, tPool + 0.35, 1.1, '0.5 0 0.9 0.5')}</path><circle cx="${(x + wob * .4).toFixed(1)}" cy="${(y + len).toFixed(1)}" r="${Math.max(1.2, rad * .32).toFixed(1)}" fill="${col}">${burst('r', Math.max(1.2, rad * .32), tPool + 1.3, 0.25)}</circle>`;
     }
   });
   return paint;
