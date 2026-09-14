@@ -48,16 +48,32 @@ function colourFor(d) {
   if (c + s + o === 0) return COL.coach;
   const m = Math.max(c, s, o); return m === c ? COL.coach : m === s ? COL.summerup : COL.other;
 }
-function painting(X0, X1, TOP, BOT, k) {
-  // k scales stroke lengths and widths for the narrow cut
+// cubic bezier length by sampling, for the draw-in dasharray
+function cubicLen(x0, y0, c1x, c1y, c2x, c2y, x1, y1) {
+  let L = 0, px = x0, py = y0;
+  for (let i = 1; i <= 10; i++) { const t = i / 10, u = 1 - t;
+    const x = u*u*u*x0 + 3*u*u*t*c1x + 3*u*t*t*c2x + t*t*t*x1, y = u*u*u*y0 + 3*u*u*t*c1y + 3*u*t*t*c2y + t*t*t*y1;
+    L += Math.hypot(x - px, y - py); px = x; py = y; }
+  return L;
+}
+// The load animation: strokes draw themselves in date order (left to right),
+// droplets pop as each stroke lands, pools splat with a little overshoot.
+// Base attributes are the finished painting, so no SMIL still shows it all.
+const T0 = 0.35, SPAN = 2.7;           // seconds: first stroke, and the spread over the year
+function painting(X0, X1, TOP, BOT, k, animate = true) {
   let paint = '';
   const n = data.days.length;
+  const anim = (attr, from, to, begin, dur, spline = '0.2 0.8 0.2 1') => animate
+    ? `<set attributeName="${attr}" to="${from}" begin="0s" dur="${begin.toFixed(2)}s"/><animate attributeName="${attr}" from="${from}" to="${to}" begin="${begin.toFixed(2)}s" dur="${dur}s" calcMode="spline" keySplines="${spline}" fill="freeze"/>` : '';
+  const splat = (attr, to, begin) => animate
+    ? `<set attributeName="${attr}" to="0" begin="0s" dur="${begin.toFixed(2)}s"/><animate attributeName="${attr}" values="0;${(to * 1.3).toFixed(1)};${to}" keyTimes="0;0.6;1" begin="${begin.toFixed(2)}s" dur="0.4s" calcMode="spline" keySplines="0.2 0.8 0.3 1;0.4 0 0.6 1" fill="freeze"/>` : '';
   data.days.forEach((d, i) => {
     if (!d.count) return;
     const r = rng(Number(d.date.replace(/-/g, '')));
     const cx = X0 + (i / (n - 1)) * (X1 - X0);
     const col = colourFor(d), tints = TINTS[col];
     const strokes = 1 + Math.floor(Math.sqrt(d.count) / 2.6);
+    const tDay = T0 + (i / (n - 1)) * SPAN;
     for (let s = 0; s < strokes; s++) {
       const t = tints[Math.floor(r() * tints.length)];
       const x = cx + (r() - .5) * 26 * k, y = TOP + r() * (BOT - TOP);
@@ -67,18 +83,27 @@ function painting(X0, X1, TOP, BOT, k) {
       const c1x = x + (ex - x) * .3 + (r() - .5) * len * .5, c1y = y + (ey - y) * .3 + (r() - .5) * len * .5;
       const c2x = x + (ex - x) * .7 + (r() - .5) * len * .5, c2y = y + (ey - y) * .7 + (r() - .5) * len * .5;
       const w = (0.5 + r() * 1.7 + (d.count > 100 ? 0.6 : 0)) * Math.max(k, .8);
-      paint += `<path d="M${x.toFixed(1)} ${y.toFixed(1)}C${c1x.toFixed(1)} ${c1y.toFixed(1)} ${c2x.toFixed(1)} ${c2y.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}" stroke="${t}" stroke-width="${w.toFixed(2)}" opacity="${(0.7 + r() * .3).toFixed(2)}"/>`;
-      paint += `<ellipse cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" rx="${(w * 1.6 + r() * 2.2 * k).toFixed(1)}" ry="${(w * 1.1 + r() * 1.4 * k).toFixed(1)}" fill="${t}" opacity=".9"/>`;
+      const L = Math.ceil(cubicLen(x, y, c1x, c1y, c2x, c2y, ex, ey) * 1.03) + 1;
+      const tStroke = tDay + r() * 0.18, dDraw = 0.28 + Math.min(0.5, L / 400);
+      paint += `<path d="M${x.toFixed(1)} ${y.toFixed(1)}C${c1x.toFixed(1)} ${c1y.toFixed(1)} ${c2x.toFixed(1)} ${c2y.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}" stroke="${t}" stroke-width="${w.toFixed(2)}" opacity="${(0.7 + r() * .3).toFixed(2)}" stroke-dasharray="${L}" stroke-dashoffset="0">${anim('stroke-dashoffset', L, 0, tStroke, dDraw.toFixed(2), '0.1 0.7 0.2 1')}</path>`;
+      // pooled paint where the fling lands, then droplets along the way
+      const prx = (w * 1.6 + r() * 2.2 * k), pry = (w * 1.1 + r() * 1.4 * k);
+      paint += `<ellipse cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" rx="${prx.toFixed(1)}" ry="${pry.toFixed(1)}" fill="${t}" opacity=".9">${splat('rx', prx, tStroke + dDraw * 0.85)}${splat('ry', pry, tStroke + dDraw * 0.85)}</ellipse>`;
       const drops = 1 + Math.floor(r() * 4);
+      let dropsSvg = '';
       for (let q = 0; q < drops; q++) {
         const u = r(); const px = x + (ex - x) * u + (r() - .5) * 14 * k, py = y + (ey - y) * u + (r() - .5) * 14 * k;
-        paint += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${((0.5 + r() * 1.6) * Math.max(k, .8)).toFixed(1)}" fill="${t}" opacity="${(0.6 + r() * .4).toFixed(2)}"/>`;
+        dropsSvg += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${((0.5 + r() * 1.6) * Math.max(k, .8)).toFixed(1)}" fill="${t}" opacity="${(0.6 + r() * .4).toFixed(2)}"/>`;
       }
+      paint += `<g opacity="1">${anim('opacity', 0, 1, tStroke + dDraw * 0.6, '0.25')}${dropsSvg}</g>`;
     }
     if (d.count >= 60) {   // heavy days pool and run
       const x = cx + (r() - .5) * 10 * k, y = TOP + 20 * k + r() * (BOT - TOP - 60 * k), rad = (2.5 + Math.sqrt(d.count) * .5) * k;
       const len = (8 + Math.sqrt(d.count) * 1.8) * k, wob = (r() - .5) * 8 * k;
-      paint += `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${rad.toFixed(1)}" ry="${(rad * .8).toFixed(1)}" fill="${col}" opacity=".95"/><path d="M${x.toFixed(1)} ${y.toFixed(1)}q${wob.toFixed(1)} ${(len * .5).toFixed(1)} ${(wob * .4).toFixed(1)} ${len.toFixed(1)}" stroke="${col}" stroke-width="${Math.max(1, rad * .3).toFixed(1)}" opacity=".9"/><circle cx="${(x + wob * .4).toFixed(1)}" cy="${(y + len).toFixed(1)}" r="${Math.max(1.2, rad * .32).toFixed(1)}" fill="${col}"/>`;
+      const tPool = tDay + 0.12;
+      paint += `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${rad.toFixed(1)}" ry="${(rad * .8).toFixed(1)}" fill="${col}" opacity=".95">${splat('rx', rad, tPool)}${splat('ry', rad * .8, tPool)}</ellipse>`;
+      const runL = Math.ceil(len * 1.2) + 1;
+      paint += `<path d="M${x.toFixed(1)} ${y.toFixed(1)}q${wob.toFixed(1)} ${(len * .5).toFixed(1)} ${(wob * .4).toFixed(1)} ${len.toFixed(1)}" stroke="${col}" stroke-width="${Math.max(1, rad * .3).toFixed(1)}" opacity=".9" stroke-dasharray="${runL}" stroke-dashoffset="0">${anim('stroke-dashoffset', runL, 0, tPool + 0.3, '0.9', '0.4 0 0.8 0.6')}</path><circle cx="${(x + wob * .4).toFixed(1)}" cy="${(y + len).toFixed(1)}" r="${Math.max(1.2, rad * .32).toFixed(1)}" fill="${col}">${splat('r', Math.max(1.2, rad * .32), tPool + 1.1)}</circle>`;
     }
   });
   return paint;
@@ -111,7 +136,7 @@ const keyRow = (X0, X1, y, size) => {
   }
   return { svg: out, lines: line + 1 };
 };
-const reveal = (W, TOP, BOT) => `<clipPath id="reveal"><rect x="0" y="${TOP - 6}" width="${W}" height="${BOT - TOP + 12}"><animate attributeName="width" from="0" to="${W}" begin=".4s" dur="2.6s" calcMode="spline" keySplines="0.4 0 0.2 1" fill="freeze"/></rect></clipPath>`;
+const reveal = (W, TOP, BOT) => `<clipPath id="reveal"><rect x="0" y="${TOP - 6}" width="${W}" height="${BOT - TOP + 12}"/></clipPath>`;
 
 function wide() {
   const W = 846, X0 = 40, X1 = 806;
@@ -167,7 +192,7 @@ ${glyph(X0, 108, 1.8)}
 <text x="${X0}" y="196" font-size="54" font-weight="700" letter-spacing="-1.2" fill="${PAPER}">${esc(line1)}</text>
 <text x="${X0}" y="258" font-size="54" font-weight="700" letter-spacing="-1.2" fill="${PAPER}">${esc(line2)}</text>
 <defs><clipPath id="band"><rect x="0" y="${TOP - 10}" width="${W}" height="${BOT - TOP + 20}"/></clipPath></defs>
-<g clip-path="url(#band)" fill="none" stroke-linecap="round">${painting(X0, X1, TOP, BOT, 1.25)}</g>
+<g clip-path="url(#band)" fill="none" stroke-linecap="round">${painting(X0, X1, TOP, BOT, 1.25, false)}</g>
 <text x="${X1}" y="${H - 26}" text-anchor="end" font-size="18" font-weight="500" letter-spacing=".6" fill="${GREY}">github.com/whaamkabaam</text>
 </svg>
 `;
